@@ -1,6 +1,6 @@
 name: paypal_integration
 description: "Seamless PayPal payments for Flutter (orders, capture, refund, UI button)."
-version: 0.0.1
+version: 0.0.2
 homepage: https://github.com/sujanmt/payment_integration
 repository: https://github.com/sujanmt/payment_integration.git
 documentation: https://github.com/sujanmt/payment_integration#readme

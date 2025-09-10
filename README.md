@@ -1,6 +1,13 @@
-## PayPal Integration for Flutter
+# PayPal Integration for Flutter
+
+[![pub package](https://img.shields.io/pub/v/paypal_integration.svg)](https://pub.dev/packages/paypal_integration)
+[![GitHub](https://img.shields.io/github/license/sujanmt/payment_integration)](https://github.com/sujanmt/payment_integration)
 
 Seamless PayPal payments for Flutter. Create orders, capture, refund, and use a ready-made PayPal button. Works with sandbox and live environments.
+
+## Repository
+- **GitHub**: [https://github.com/sujanmt/payment_integration](https://github.com/sujanmt/payment_integration)
+- **Issues**: [https://github.com/sujanmt/payment_integration/issues](https://github.com/sujanmt/payment_integration/issues)
 
 ### Features
 - Create and capture PayPal orders (Checkout v2)
@@ -22,7 +29,7 @@ Seamless PayPal payments for Flutter. Create orders, capture, refund, and use a 
 Add to `pubspec.yaml`:
 ```yaml
 dependencies:
-  paypal_integration: ^0.0.1
+  paypal_integration: ^0.0.2
 ```
 
 ### Quick Start
@@ -30,31 +37,30 @@ dependencies:
 import 'package:paypal_integration/paypal_integration.dart';
 
 Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
   // Initialize once, e.g., in your app startup
   await PayPalIntegration.initialize(
     clientId: 'YOUR_CLIENT_ID',
     secretKey: 'YOUR_SECRET_KEY',
     environment: PayPalEnvironment.sandbox,
   );
+  runApp(MyApp());
 }
 
-// Create an order
-final order = await PayPalIntegration.createPayment(
+// Use the PayPalButton widget
+PayPalButton(
   amount: 19.99,
   currency: 'USD',
   description: 'Sample purchase',
-);
-
-// Capture after buyer approval (using returned order ID)
-final captured = await PayPalIntegration.executePayment(
-  paymentId: order['id'],
-);
-
-// Refund
-final refund = await PayPalIntegration.refund(
-  captureId: captured['purchase_units'][0]['payments']['captures'][0]['id'],
-  amount: 19.99,
-  currency: 'USD',
+  returnUrl: 'myapp://paypal/return',
+  cancelUrl: 'myapp://paypal/cancel',
+  onResult: (result) {
+    if (result.success) {
+      print('Payment successful: ${result.orderId}');
+    } else {
+      print('Payment failed: ${result.message}');
+    }
+  },
 );
 ```
 
@@ -72,15 +78,17 @@ await PayPalIntegration.initialize(
 #### Payment Operations
 ```dart
 // Create payment order
-final order = await PayPalIntegration.createPayment(
+final payment = await PayPalIntegration.createPayment(
   amount: 99.99,
   currency: 'USD',
   description: 'Product description',
+  returnUrl: 'myapp://paypal/return',
+  cancelUrl: 'myapp://paypal/cancel',
 );
 
 // Execute/capture payment
-final captured = await PayPalIntegration.executePayment(
-  paymentId: order['id'],
+final result = await PayPalIntegration.executePayment(
+  orderId: payment.id,
 );
 
 // Refund payment
@@ -90,21 +98,19 @@ final refund = await PayPalIntegration.refund(
   currency: 'USD',
 );
 
-// Void authorized payment
-final voided = await PayPalIntegration.voidPayment(
-  authorizationId: 'auth_id',
-);
-
 // Get payment details
 final details = await PayPalIntegration.getPaymentDetails(
-  paymentId: order['id'],
+  orderId: payment.id,
 );
 
-// Get transaction history
-final transactions = await PayPalIntegration.getTransactionHistory(
-  pageSize: 20,
-  startTime: '2024-01-01T00:00:00Z', // optional
-  endTime: '2024-12-31T23:59:59Z',   // optional
+// Start web checkout flow
+final checkoutResult = await PayPalIntegration.startWebCheckout(
+  context: context,
+  amount: 99.99,
+  currency: 'USD',
+  description: 'Product description',
+  returnUrl: 'myapp://paypal/return',
+  cancelUrl: 'myapp://paypal/cancel',
 );
 ```
 
@@ -116,72 +122,52 @@ PayPalButton(
   amount: 49.99,
   currency: 'USD',
   description: 'Pro subscription',
-  onCreated: (order) {
-    // Handle order creation
+  returnUrl: 'myapp://paypal/return',
+  cancelUrl: 'myapp://paypal/cancel',
+  onResult: (result) {
+    if (result.success) {
+      print('Payment successful: ${result.orderId}');
+      print('Capture ID: ${result.captureId}');
+    } else {
+      print('Payment failed: ${result.message}');
+    }
   },
-  onApproveLink: (url) {
-    // Open approval URL in WebView or browser
-  },
-  onError: (e) {
-    // Handle errors
-  },
-)
-```
-
-#### PayPalWebviewCheckout
-```dart
-final result = await Navigator.of(context).push(
-  MaterialPageRoute(
-    builder: (_) => PayPalWebviewCheckout(
-      approvalUrl: approveUrl,
-      returnUrlPrefix: 'myapp://success',   // optional
-      cancelUrlPrefix: 'myapp://cancel',    // optional
-    ),
+  style: ElevatedButton.styleFrom(
+    backgroundColor: Colors.blue,
+    foregroundColor: Colors.white,
   ),
-);
-
-if (result is Map) {
-  switch (result['status']) {
-    case 'approved':
-      // Handle approval
-      break;
-    case 'canceled':
-      // Handle cancellation
-      break;
-  }
-}
+  child: Text('Pay with PayPal'),
+)
 ```
 
 ### Complete Payment Flow
 ```dart
 // 1. Create order
-final order = await PayPalIntegration.createPayment(
+final payment = await PayPalIntegration.createPayment(
   amount: 29.99,
   currency: 'USD',
   description: 'Premium feature',
+  returnUrl: 'myapp://paypal/return',
+  cancelUrl: 'myapp://paypal/cancel',
 );
 
-// 2. Extract approval URL
-final links = (order['links'] as List).cast<Map<String, dynamic>>();
-final approveUrl = links.firstWhere((e) => e['rel'] == 'approve')['href'] as String;
-
-// 3. Launch approval (WebView or browser)
-final result = await Navigator.of(context).push(
-  MaterialPageRoute(
-    builder: (_) => PayPalWebviewCheckout(
-      approvalUrl: approveUrl,
-      returnUrlPrefix: 'myapp://return',
-      cancelUrlPrefix: 'myapp://cancel',
-    ),
-  ),
+// 2. Start web checkout (handles approval and capture automatically)
+final result = await PayPalIntegration.startWebCheckout(
+  context: context,
+  amount: 29.99,
+  currency: 'USD',
+  description: 'Premium feature',
+  returnUrl: 'myapp://paypal/return',
+  cancelUrl: 'myapp://paypal/cancel',
 );
 
-// 4. Capture payment on approval
-if (result is Map && result['status'] == 'approved') {
-  final captured = await PayPalIntegration.executePayment(
-    paymentId: order['id'],
-  );
-  // Handle successful payment
+// 3. Handle result
+if (result.success) {
+  print('Payment successful!');
+  print('Order ID: ${result.orderId}');
+  print('Capture ID: ${result.captureId}');
+} else {
+  print('Payment failed: ${result.message}');
 }
 ```
 
